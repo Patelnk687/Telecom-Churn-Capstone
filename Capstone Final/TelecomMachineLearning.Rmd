@@ -1,0 +1,161 @@
+---
+title: "Telecom Machine Learning"
+author: "Nirmal Patel"
+date: "November 13, 2018"
+output:
+  word_document: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+---
+title: "TelecomChurnCapstone"
+author: "Nirmal Patel"
+date: "November 10, 2018"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+##Machine Learning Questions
+#How do you frame your main question as a machine learning problem?  
+
+My telecom churn analysis question can be frames as a machine learning question such as which factors are most influencial in customer churning. This would allow me to run machine learning models such as logistic regression as a binomial to figure out if a customer churns or not.    
+
+#Is it a supervised or unsupervised problem?          
+The dataset I have is more of a supervised problem because the data is given in a well structured with varous input and output variables. in this case the output variable we are testing it the churning of a customer.      
+
+#If it is supervised, is it a regression or a classification?     
+My problem is a regression problem due to churning being a binary variable with two factors such as yes or no. Though if we wanted to figure out which contract type a person would be more likely to choose then it would be classification.
+
+
+#What are the main features (also called independent variables or predictors) that you'll use?      
+Some of the independent variables include gender, SeniorCitizen, tenure, MultipleLines, InternetService, Contract, PaperlessBilling, PaymentMethod, and MonthlyCharges. The Dependent Variable is Churn of the customer.
+
+#Which machine learning technique will you use?   
+I will use logistic learning for figuring out churning of the customers.
+
+#How will you evaluate the success of your machine learning technique? What metric will you use?     
+The success of my model will be evaluated by the accuracy of logistic regression. 
+
+
+
+
+
+
+
+
+```{r telecomdata, include=FALSE}
+#Read in the Telecom Churn Data
+telecom <- read.csv("Capstone Final/WA_Fn-UseC_-Telco-Customer-Churn.csv", header= TRUE)
+
+```
+
+
+
+
+```{r telecomheaad, include=FALSE}
+library("knitr")
+library("readr")
+library("dplyr")
+library("tidyr")
+library("RColorBrewer")
+library("ggplot2")
+library("caTools")
+library("rpart")
+library("caret")
+library("effects")
+library("caTools")
+library("ROCR")
+library("markdown")
+```
+
+
+ 
+##Machine Learning Models and Analysis
+
+
+```{r facts, include=FALSE,echo=FALSE, results='hide'}
+as.factor(telecom$Churn)
+```
+
+##Logistic Regression
+```{r HYPOUT, include=TRUE}
+churnmodel <- glm(Churn~gender+SeniorCitizen+Partner+Dependents+tenure+PhoneService+MultipleLines+InternetService+OnlineSecurity+OnlineBackup+DeviceProtection+TechSupport+StreamingTV+StreamingMovies+Contract+PaperlessBilling+PaymentMethod+MonthlyCharges,data=telecom, family="binomial")
+summary(churnmodel)
+```
+The most significant variables were SeniorCitizen, tenure, MultipleLines, InternetService, Contract, PaperlessBilling, and PaymentMethod. 
+
+##ROC
+```{r ROCCURVEprep, include=FALSE, ECHO=FALSE}
+telecom$Churn <- as.factor(telecom$Churn)
+set.seed(155)
+#Randomly splits the data
+split<- sample.split(telecom$Churn, SplitRatio = 0.75)
+telecomTrain <- subset(telecom, split==TRUE)
+telecomTest <- subset(telecom, split==FALSE)
+telecomLog<- glm(Churn~gender+SeniorCitizen+tenure+MultipleLines+InternetService+Contract+PaperlessBilling+PaymentMethod+MonthlyCharges,data=telecomTrain, family="binomial")
+predictTrainn<-predict(telecomLog,type="response")
+tapply(predictTrainn, telecomTrain$Churn, mean)
+ROCRpred<-prediction(predictTrainn,telecomTrain$Churn)
+```
+
+
+
+```{r TESTACCURAC,fig.width=4, fig.height=3}
+##accuracy
+plot(performance(ROCRpred, "acc"))
+abline(h=0.805, v=0.53)
+```
+
+
+
+```{r positiveanalis}
+table(telecomTrain$Churn,predictTrainn>0.53)
+```
+With a cutoff of 0.53.The true positive rate is 726/(335+726)= 0.6843, So 68.43% of the time the model can predict a customer will churn and they would churn.
+While False Positive rate is 676/(676+3545)= 0.1602, so 16.02% the model would predict a customer will churn though they stayed. The accuracy of the model is 
+(3545+726)/(3545+335+676+726)= 0.8086. This model has an accuracy of 80.86%
+
+```{r ROCCUERV}
+#ROC Curve
+ROCRpred<-prediction(predictTrainn,telecomTrain$Churn)
+ROCRperf<- performance(ROCRpred, "tpr","fpr")
+plot(ROCRperf, colorize=TRUE, print.cutoffs.at=seq(0,1,0.1),text.adj=c(-0.2,1.7))
+```
+
+
+
+```{r Accuracy}
+AUC<-performance(ROCRpred, "auc")
+AUC<-unlist(slot(AUC,"y.values"))
+AUC<-round(AUC,4)
+AUC
+```
+The area under the curve of our model is 0.8475. Our model has an accuracy of 84.75% which is really good.  
+#Predicting Churning on Multiple Variables
+```{r HYPOUTTRANSx, fig.width=10, fig.height=12}
+churnmodel1 <- glm(Churn~gender+SeniorCitizen+tenure+MonthlyCharges+MultipleLines+InternetService+Contract+PaperlessBilling+PaymentMethod,data=telecom, family="binomial")
+plot(allEffects(churnmodel1))
+```
+
+
+
+
+
+#Conclusion
+
+The telecom customer churn analysis depicts various interesting results some of which include:    
+1. Females are ~0.2% more likely to churn.           
+2. Senior Citizens are ~4% likely to churn.             
+3. Customers with tenure of 0 months are ~40% more likely to churn compared to customers with tenure of 72 months. Between 0 to 40 months the customer is likely to churn. The company should focus on their services during this period.     
+4. Higher monthly charges to customers are more likely to churn. A customer paying $100 monthly is 1.75x more likely to churn than that of a customer paying ~$20 per month.            
+5. Customers with multiple lines are 1.3x more likely to churn compared to people with no multiple lines (single line). Customers with no phone service are 1.9x more likely to churn in comparison with single line service.      
+6. Customers with Fiber Optics are 2.7x more likely to churn in comparison to customers with no internet service. While DSL customers are 1.4x likely to churn compared to customers with no internet service.      
+7. Month to Month customers are 3.5x more likely to churn than a two year contracted customer. While a one year contracted customer is 1.8x more likely to churn than a two year contracted customer.          
+8. Customers with paperless billing are 1.37x more likely to churn than those receiving their monthly bill in the mail.           
+9. Customers paying with Electronic Check are 1.4x more likely to churn in comparison to customers paying in credit card. While customers paying by bank transfer were 1.07x and customers paying by mailed check was 1.03x more likely to churn in comparison to customers paying in credit card.       
+
+#Recommendations
+More research would need to be done to see if these trends are specific to this data set or can be used to speak of other telecom data sets as well. Addition of detailed variables to this data such as price of each service, the location of the customer, demography, and age of customer would help gain further insight.
